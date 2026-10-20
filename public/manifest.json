@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Chzzk Tools",
+  "version": "0.1.0",
+  "description": "치지직(chzzk.naver.com) 편의 기능 모음",
+  "permissions": ["storage", "webRequest"],
+  "host_permissions": ["https://chzzk.naver.com/*", "https://api.chzzk.naver.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://chzzk.naver.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://chzzk.naver.com/*"],
+      "js": ["pageHook.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ],
+  "action": {
+    "default_title": "Chzzk Tools",
+    "default_popup": "popup/popup.html"
+  }
+}

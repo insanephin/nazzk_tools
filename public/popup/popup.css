@@ -1,0 +1,19 @@
+body {
+  width: 220px;
+  margin: 0;
+  padding: 12px 14px;
+  font: 14px system-ui, sans-serif;
+  background: #141517;
+  color: #e6e6e6;
+}
+h1 {
+  font-size: 15px;
+  margin: 0 0 10px;
+  color: #00ffa3;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
