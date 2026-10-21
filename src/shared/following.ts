@@ -1,11 +1,6 @@
 export interface FollowingChannel {
   channelId: string;
   channelName: string;
-  channelImageUrl: string | null;
-  openLive: boolean;
-  liveTitle: string | null;
-  liveCategory: string | null;
-  viewers: number;
   notification: boolean;
 }
 
@@ -13,11 +8,8 @@ interface RawFollowing {
   channelId: string;
   channel?: {
     channelName?: string;
-    channelImageUrl?: string | null;
     personalData?: { following?: { notification?: boolean } };
   };
-  streamer?: { openLive?: boolean };
-  liveInfo?: { liveTitle?: string | null; liveCategoryValue?: string | null; concurrentUserCount?: number };
 }
 
 interface RawResponse {
@@ -56,11 +48,6 @@ function toChannel(raw: RawFollowing): FollowingChannel {
   return {
     channelId: raw.channelId,
     channelName: raw.channel?.channelName ?? raw.channelId,
-    channelImageUrl: raw.channel?.channelImageUrl ?? null,
-    openLive: raw.streamer?.openLive ?? false,
-    liveTitle: raw.liveInfo?.liveTitle ?? null,
-    liveCategory: raw.liveInfo?.liveCategoryValue ?? null,
-    viewers: raw.liveInfo?.concurrentUserCount ?? 0,
     notification: raw.channel?.personalData?.following?.notification ?? false,
   };
 }

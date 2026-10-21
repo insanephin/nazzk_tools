@@ -37,12 +37,9 @@ let ungroupedOrder: string[] = [];
 const busySections = new Set<string>();
 
 let reactList: HTMLUListElement | null = null;
-let container: HTMLDivElement | null = null;
 let hidden: HTMLElement[] = [];
 let addButton: HTMLButtonElement | null = null;
 const templates: {
-  live?: HTMLLIElement;
-  offline?: HTMLLIElement;
   header?: HTMLElement;
   arrow?: HTMLButtonElement;
 } = {};
@@ -86,9 +83,15 @@ chrome.runtime.onMessage.addListener((message: FollowMessage) => {
   if (!active || message.type !== "followingsChanged") return;
   (async () => {
     if (message.followed && message.fromThisTab && message.channelId) await applyPolicyToFollow(message.channelId);
+    refreshReactList();
     await load();
   })();
 });
+
+function refreshReactList(): void {
+  const nav = reactList?.closest("nav");
+  if (nav) findRefreshButton(nav)?.click();
+}
 
 async function applyPolicyToFollow(channelId: string): Promise<void> {
   const policy = policyOf(groups.find((g) => g.channelIds.includes(channelId))?.id ?? "");
@@ -168,45 +171,41 @@ function sync(): void {
   if (list !== reactList) {
     restore();
     reactList = list;
-    captureTemplates(list, nav);
-  } else if ((!templates.live || !templates.offline) && captureItemTemplates(list)) {
+    captureTemplates(nav);
+    list.style.display = "flex";
+    list.style.flexDirection = "column";
+    for (const [type, listener] of LIST_LISTENERS) list.addEventListener(type, listener);
     render();
   }
-  if (!templates.live && !templates.offline) return;
-
-  hide(list);
-  list.parentElement!.querySelectorAll<HTMLElement>(`:scope > ${tok("box")}`).forEach(hide);
+  showAllItems(nav);
   placeAddButton(nav);
-  if (!container) {
-    container = document.createElement("div");
-    container.setAttribute(MARK, "");
-    container.addEventListener("click", onClick);
-    container.addEventListener("contextmenu", onContextMenu);
-    container.addEventListener("keydown", onKeyDown);
-    container.addEventListener("dragstart", onDragStart);
-    container.addEventListener("dragover", onDragOver);
-    container.addEventListener("dragleave", onDragLeave);
-    container.addEventListener("drop", onDrop);
-    container.addEventListener("dragend", endDrag);
-    render();
-  }
-  if (container.previousElementSibling !== list) list.after(container);
+  layout();
 }
+
+const LIST_LISTENERS: [string, EventListener][] = [
+  ["click", onClick as EventListener],
+  ["contextmenu", onContextMenu as EventListener],
+  ["keydown", onKeyDown as EventListener],
+  ["dragstart", onDragStart as EventListener],
+  ["dragover", onDragOver as EventListener],
+  ["dragleave", onDragLeave as EventListener],
+  ["drop", onDrop as EventListener],
+  ["dragend", endDrag],
+];
+const ORDER_STEP = 10_000;
 
 function findReactList(): HTMLUListElement | null {
   if (channels.length === 0) return null;
   const followed = new Set(channels.map((c) => c.channelId));
   for (const ul of document.querySelectorAll<HTMLUListElement>("nav ul")) {
-    if (ul.closest(`[${MARK}]`)) continue;
     if (ul.querySelector(tok("is_highlighted"))) continue;
-    const link = ul.querySelector<HTMLAnchorElement>(`a${tok("item_link")}`);
-    if (link && followed.has(channelIdOf(link.href))) return ul;
+    const links = ul.querySelectorAll<HTMLAnchorElement>(`a${tok("item_link")}`);
+    if ([...links].some((a) => followed.has(channelIdOf(a.href)))) return ul;
   }
   return null;
 }
 
-function captureTemplates(list: HTMLUListElement, nav: Element): void {
-  captureItemTemplates(list);
+function captureTemplates(nav: Element): void {
   const header = nav.querySelector<HTMLElement>(`:scope > ${tok("header")}`);
   if (header) {
     templates.header = clone(header);
@@ -218,23 +217,22 @@ function captureTemplates(list: HTMLUListElement, nav: Element): void {
   }
 }
 
-function captureItemTemplates(list: HTMLUListElement): boolean {
-  const before = [templates.live, templates.offline];
-  for (const li of list.querySelectorAll<HTMLLIElement>(":scope > li")) {
-    const profile = li.querySelector(tok("profile"));
-    if (!profile || !li.querySelector(tok("information"))) continue;
-    if (hasToken(profile, "is_live")) templates.live ??= clone(li);
-    else templates.offline ??= clone(li);
+function showAllItems(nav: Element): void {
+  for (const box of nav.querySelectorAll<HTMLElement>(`:scope > ${tok("box")}`)) {
+    hide(box);
+    box.querySelector<HTMLButtonElement>('button[aria-expanded="false"]')?.click();
   }
-  return templates.live !== before[0] || templates.offline !== before[1];
+}
+
+function findRefreshButton(nav: Element): HTMLButtonElement | null {
+  return nav.querySelector<HTMLButtonElement>(`:scope > ${tok("header")} > button:not([${MARK}])`);
 }
 
 function placeAddButton(nav: Element): void {
-  const header = nav.querySelector(`:scope > ${tok("header")}`);
-  const refresh = header?.querySelector(`:scope > button:not([${MARK}])`);
-  if (!header || !refresh) return;
-  addButton ??= createAddButton(refresh as HTMLButtonElement);
-  if (addButton.nextElementSibling !== refresh) header.insertBefore(addButton, refresh);
+  const refresh = findRefreshButton(nav);
+  if (!refresh) return;
+  addButton ??= createAddButton(refresh);
+  if (addButton.nextElementSibling !== refresh) refresh.before(addButton);
 }
 
 function createAddButton(refresh: HTMLButtonElement): HTMLButtonElement {
@@ -274,8 +272,20 @@ function hide(el: HTMLElement): void {
 
 function restore(): void {
   addButton?.remove();
-  container?.remove();
-  container = null;
+  if (reactList) {
+    reactList.querySelectorAll(`:scope > [${MARK}]`).forEach((e) => e.remove());
+    for (const li of reactList.querySelectorAll<HTMLLIElement>(":scope > li")) {
+      li.style.order = "";
+      li.style.display = "";
+      li.style.boxShadow = "";
+      li.removeAttribute("draggable");
+      delete li.dataset.channelId;
+      delete li.dataset.section;
+    }
+    reactList.style.display = "";
+    reactList.style.flexDirection = "";
+    for (const [type, listener] of LIST_LISTENERS) reactList.removeEventListener(type, listener);
+  }
   hidden.forEach((el) => (el.style.display = ""));
   hidden = [];
   reactList = null;
@@ -283,35 +293,84 @@ function restore(): void {
 
 function render(): void {
   publishPolicy();
-  if (!container || !reactList) return;
+  if (!reactList) return;
   if (dragging) {
     renderPending = true;
     return;
   }
-  const ungrouped = sectionChannels("");
-  const sections = groups.map((g) => renderSection(g, g.name, g.collapsed, sectionChannels(g.id)));
-  const rest =
-    groups.length === 0 ? [renderList(ungrouped, "")] : renderSection(null, "미분류", ungroupedCollapsed, ungrouped);
-
   const active = document.activeElement;
   const focused =
-    active && container.contains(active) && active.matches('[role="button"]')
+    active && reactList.contains(active) && active.matches('[role="button"]')
       ? active.closest<HTMLElement>("[data-group-id]")?.dataset.groupId
       : undefined;
-  container.replaceChildren(...sections.flat(), ...rest);
+
+  reactList.querySelectorAll(`:scope > [${MARK}]`).forEach((e) => e.remove());
+  if (groups.length > 0) {
+    reactList.append(
+      ...groups.map((g) => renderHeader(g, g.name, g.collapsed, sectionChannels(g.id))),
+      renderHeader(null, "미분류", ungroupedCollapsed, sectionChannels("")),
+    );
+  }
+  layout();
   if (focused !== undefined) {
-    container.querySelector<HTMLElement>(`[data-group-id="${focused}"] [role="button"]`)?.focus();
+    reactList.querySelector<HTMLElement>(`[data-group-id="${focused}"] [role="button"]`)?.focus();
   }
 }
 
-function renderSection(group: Group | null, name: string, collapsed: boolean, list: FollowingChannel[]): HTMLElement[] {
-  const live = list.filter((c) => c.openLive).length;
+function layout(): void {
+  if (!reactList) return;
+  const sectionIds = [...groups.map((g) => g.id), ""];
+  const bySection = new Map<string, HTMLLIElement[]>(sectionIds.map((id) => [id, []]));
+  const followed = new Set(channels.map((c) => c.channelId));
+  for (const li of reactList.querySelectorAll<HTMLLIElement>(`:scope > li:not([${MARK}])`)) {
+    const link = li.querySelector<HTMLAnchorElement>(`a${tok("item_link")}`);
+    const channelId = link ? channelIdOf(link.href) : "";
+    li.dataset.channelId = channelId;
+    li.draggable = true;
+    if (!followed.has(channelId)) {
+      li.style.display = "none";
+      continue;
+    }
+    bySection.get(groups.find((g) => g.channelIds.includes(channelId))?.id ?? "")!.push(li);
+  }
+
+  sectionIds.forEach((id, k) => {
+    const lis = sortSection(id, bySection.get(id)!);
+    const collapsed = id ? groups.find((g) => g.id === id)!.collapsed : groups.length > 0 && ungroupedCollapsed;
+    const header = reactList!.querySelector<HTMLElement>(`:scope > [${MARK}][data-group-id="${id}"]`);
+    if (header) {
+      header.style.order = String(k * ORDER_STEP);
+      const count = header.querySelector<HTMLElement>("[data-count]");
+      const text = `${lis.filter(isLive).length}/${lis.length}`;
+      if (count && count.textContent !== text) count.textContent = text;
+    }
+    lis.forEach((li, i) => {
+      li.dataset.section = id;
+      li.style.order = String(k * ORDER_STEP + 1 + i);
+      li.style.display = collapsed ? "none" : "";
+    });
+  });
+}
+
+function sortSection(sectionId: string, lis: HTMLLIElement[]): HTMLLIElement[] {
+  const ids = sectionId ? (groups.find((g) => g.id === sectionId)?.channelIds ?? []) : ungroupedOrder;
+  const rank = new Map(ids.map((id, i) => [id, i]));
+  const rankOf = (li: HTMLLIElement) => rank.get(li.dataset.channelId!) ?? ids.length;
+  return [...lis].sort((a, b) => Number(isLive(b)) - Number(isLive(a)) || rankOf(a) - rankOf(b));
+}
+
+function isLive(li: HTMLLIElement): boolean {
+  const profile = li.querySelector(tok("profile"));
+  return profile ? hasToken(profile, "is_live") : false;
+}
+
+function renderHeader(group: Group | null, name: string, collapsed: boolean, list: FollowingChannel[]): HTMLLIElement {
   const header = templates.header ? clone(templates.header) : document.createElement("div");
   const title = header.querySelector("strong") ?? header;
   const label = document.createElement("span");
   label.textContent = name;
   const count = document.createElement("span");
-  count.textContent = `${live}/${list.length}`;
+  count.dataset.count = "";
   count.style.cssText = "font-weight:400;opacity:.6";
 
   if (templates.arrow) {
@@ -329,10 +388,15 @@ function renderSection(group: Group | null, name: string, collapsed: boolean, li
   title.tabIndex = 0;
   header.style.cursor = "pointer";
   header.style.minHeight = "28px";
-  header.dataset.groupId = group?.id ?? "";
-  header.draggable = group !== null;
-  if (list.length > 0) header.append(renderBell(header.dataset.groupId, name, list));
-  return collapsed || list.length === 0 ? [header] : [header, renderList(list, header.dataset.groupId)];
+
+  const li = document.createElement("li");
+  li.setAttribute(MARK, "");
+  li.style.listStyle = "none";
+  li.dataset.groupId = group?.id ?? "";
+  li.draggable = group !== null;
+  if (list.length > 0) header.append(renderBell(li.dataset.groupId, name, list));
+  li.append(header);
+  return li;
 }
 
 function renderBell(sectionId: string, name: string, list: FollowingChannel[]): HTMLButtonElement {
@@ -384,53 +448,6 @@ function bellIcon(on: boolean): SVGSVGElement {
   return svg;
 }
 
-function renderList(list: FollowingChannel[], sectionId: string): HTMLUListElement {
-  const ul = document.createElement("ul");
-  ul.className = reactList!.className;
-  ul.dataset.section = sectionId;
-  const sorted = [...list].sort((a, b) => Number(b.openLive) - Number(a.openLive));
-  ul.append(...sorted.map(renderChannel));
-  return ul;
-}
-
-function renderChannel(c: FollowingChannel): HTMLLIElement {
-  const li = clone((c.openLive ? templates.live : templates.offline) ?? templates.live ?? templates.offline!);
-  li.dataset.channelId = c.channelId;
-  li.draggable = true;
-  li.querySelectorAll(`${tok("tooltip")}, ${tok("participant")}, ${tok("icon_party")}`).forEach((e) => e.remove());
-
-  const img = li.querySelector("img");
-  if (img) {
-    if (c.channelImageUrl) img.src = c.channelImageUrl;
-    else img.style.visibility = "hidden";
-  }
-
-  const name = li.querySelector(`${tok("information")} ${tok("name")}`);
-  if (name) name.textContent = c.channelName;
-
-  const profile = li.querySelector(tok("profile"));
-  const fromLive = profile ? hasToken(profile, "is_live") : false;
-  if (fromLive && !c.openLive) {
-    profile!.classList.remove(...[...profile!.classList].filter((t) => t.startsWith("_is_live_")));
-    li.querySelectorAll(`em, ${tok("description")}`).forEach((e) => e.remove());
-  } else if (!fromLive && c.openLive && img) {
-    img.style.outline = "2px solid #ff4d4d";
-  }
-
-  const desc = li.querySelector(tok("description"));
-  if (desc) desc.textContent = c.liveCategory ?? "";
-  const count = li.querySelector(`em${tok("count")}`);
-  if (count) count.textContent = c.viewers.toLocaleString();
-
-  const link = li.querySelector<HTMLAnchorElement>(`a${tok("item_link")}`);
-  if (link) {
-    link.draggable = false;
-    link.href = c.openLive ? `/live/${c.channelId}` : `/${c.channelId}`;
-    link.title = c.liveTitle ?? "";
-  }
-  return li;
-}
-
 function onKeyDown(e: KeyboardEvent): void {
   if (e.key !== "Enter" && e.key !== " ") return;
   const title = (e.target as Element).closest('[role="button"]');
@@ -456,22 +473,7 @@ function onClick(e: MouseEvent): void {
     setSectionNotification(header.dataset.groupId!, bell.dataset.name!, bell.getAttribute("aria-pressed") !== "true");
     return;
   }
-  if (header) {
-    toggleSection(header.dataset.groupId!);
-    return;
-  }
-
-  const link = target.closest<HTMLAnchorElement>("a[href]");
-  if (link && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
-    e.preventDefault();
-    navigate(link.pathname);
-  }
-}
-
-function navigate(path: string): void {
-  const idx = ((history.state as { idx?: number } | null)?.idx ?? 0) + 1;
-  history.pushState({ usr: null, key: Math.random().toString(36).slice(2, 10), idx }, "", path);
-  dispatchEvent(new PopStateEvent("popstate", { state: history.state }));
+  if (header) toggleSection(header.dataset.groupId!);
 }
 
 function onContextMenu(e: MouseEvent): void {
@@ -691,7 +693,7 @@ function dropTarget(e: DragEvent): DropTarget | null {
   }
   if (dragging.kind !== "channel") return null;
   const li = target.closest<HTMLElement>("[data-channel-id]");
-  const sectionId = li?.closest<HTMLElement>("[data-section]")?.dataset.section;
+  const sectionId = li?.dataset.section;
   if (!li || sectionId === undefined || li.dataset.channelId === dragging.id) return null;
   const rect = li.getBoundingClientRect();
   return {
@@ -716,7 +718,7 @@ function onDragOver(e: DragEvent): void {
 }
 
 function onDragLeave(e: DragEvent): void {
-  if (!container?.contains(e.relatedTarget as Node | null)) indicate(null);
+  if (!reactList?.contains(e.relatedTarget as Node | null)) indicate(null);
 }
 
 function onDrop(e: DragEvent): void {
