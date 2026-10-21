@@ -1,4 +1,5 @@
 import { FOLLOWINGS_MESSAGE } from "./shared/following";
+import { AD_BANNER, PREMIUM_LIVE, SCHEDULE_BANNER, SLOT_ATTR, SLOT_TITLE_ATTR } from "./shared/homeSections";
 import { NOTIFY_ATTR, type NotifyPolicy } from "./shared/notifyPolicy";
 
 const FOLLOW = /^https:\/\/api\.chzzk\.naver\.com\/service\/v1\/channels\/([^/?#]+)\/follow(?:[?#]|$)/;
@@ -60,4 +61,52 @@ function policyFor(channelId: string): boolean | null {
   } catch {
     return null;
   }
+}
+
+const HOME_CONTENT = ["section", "swap", "content"].map((n) => `:is([class^="_${n}_"], [class*=" _${n}_"])`).join(" > ");
+let tagQueued = false;
+
+new MutationObserver(() => {
+  if (tagQueued) return;
+  tagQueued = true;
+  requestAnimationFrame(() => {
+    tagQueued = false;
+    tagHomeSections();
+  });
+}).observe(document, { childList: true, subtree: true });
+
+function tagHomeSections(): void {
+  if (location.pathname !== "/") return;
+  const container = document.querySelector(HOME_CONTENT);
+  if (!container) return;
+  for (const el of container.children) {
+    if (el.hasAttribute(SLOT_ATTR)) continue;
+    const slot = slotOf(el, container);
+    if (!slot) continue;
+    el.setAttribute(SLOT_ATTR, slot.key);
+    if (slot.title) el.setAttribute(SLOT_TITLE_ATTR, slot.title);
+  }
+}
+
+interface Fiber {
+  memoizedProps?: Record<string, any> | null;
+  stateNode?: unknown;
+  return?: Fiber | null;
+}
+
+function slotOf(el: Element, container: Element): { key: string; title?: string } | null {
+  if (el.querySelector("#home_banner")) return { key: AD_BANNER };
+  const fiberKey = Object.keys(el).find((k) => k.startsWith("__reactFiber$"));
+  let fiber = fiberKey ? ((el as any)[fiberKey] as Fiber) : null;
+  while (fiber && fiber.stateNode !== container) {
+    const props = fiber.memoizedProps;
+    const slot = props?.slot;
+    if (typeof slot?.slotContentType === "string") {
+      return { key: slot.slotContentType, title: typeof slot.slotTitle === "string" ? slot.slotTitle : undefined };
+    }
+    if (props?.bannerList) return { key: SCHEDULE_BANNER };
+    if (props?.liveList && props.cardIndex === undefined && "targetUser" in props) return { key: PREMIUM_LIVE };
+    fiber = fiber.return ?? null;
+  }
+  return null;
 }
