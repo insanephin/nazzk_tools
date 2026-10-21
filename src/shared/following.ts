@@ -27,6 +27,7 @@ interface RawResponse {
 }
 
 const BASE = "https://api.chzzk.naver.com/service/v1/channels/followings";
+export const FOLLOWINGS_MESSAGE = "chzzk-tools:followings";
 const PAGE_SIZE = 100;
 
 export async function fetchFollowings(): Promise<FollowingChannel[]> {
@@ -45,6 +46,12 @@ export async function fetchFollowings(): Promise<FollowingChannel[]> {
   }
 }
 
+export function parseFollowings(body: unknown): { list: FollowingChannel[]; complete: boolean } | null {
+  const res = (typeof body === "string" ? JSON.parse(body) : body) as RawResponse | null;
+  if (res?.code !== 200 || !res.content?.followingList) return null;
+  return { list: res.content.followingList.map(toChannel), complete: (res.content.totalPage ?? 1) <= 1 };
+}
+
 function toChannel(raw: RawFollowing): FollowingChannel {
   return {
     channelId: raw.channelId,
@@ -55,28 +62,6 @@ function toChannel(raw: RawFollowing): FollowingChannel {
     liveCategory: raw.liveInfo?.liveCategoryValue ?? null,
     viewers: raw.liveInfo?.concurrentUserCount ?? 0,
     notification: raw.channel?.personalData?.following?.notification ?? false,
-  };
-}
-
-interface RawLiveStatus {
-  code: number;
-  message: string | null;
-  content?: { status?: string; liveTitle?: string | null; liveCategoryValue?: string | null; concurrentUserCount?: number } | null;
-}
-
-export async function withLiveStatus(c: FollowingChannel): Promise<FollowingChannel> {
-  const url = `https://api.chzzk.naver.com/polling/v2/channels/${c.channelId}/live-status`;
-  const res = await fetch(url, { credentials: "include" });
-  const body = (await res.json()) as RawLiveStatus;
-  if (body.code !== 200) throw new Error(body.message ?? `code ${body.code}`);
-  const live = body.content;
-  if (live?.status !== "OPEN") return c;
-  return {
-    ...c,
-    openLive: true,
-    liveTitle: live.liveTitle ?? null,
-    liveCategory: live.liveCategoryValue ?? null,
-    viewers: live.concurrentUserCount ?? 0,
   };
 }
 

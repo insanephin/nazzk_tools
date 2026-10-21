@@ -1,4 +1,4 @@
-import { fetchFollowings, setNotification, withLiveStatus, type FollowingChannel } from "../shared/following";
+import { FOLLOWINGS_MESSAGE, fetchFollowings, parseFollowings, setNotification, type FollowingChannel } from "../shared/following";
 import {
   createGroup,
   getGroups,
@@ -29,6 +29,7 @@ let refreshTimer: number | undefined;
 let syncQueued = false;
 
 let channels: FollowingChannel[] = [];
+let channelsVersion = 0;
 let groups: Group[] = [];
 let ungroupedCollapsed = false;
 let ungroupedNotify: boolean | undefined;
@@ -85,7 +86,7 @@ chrome.runtime.onMessage.addListener((message: FollowMessage) => {
   if (!active || message.type !== "followingsChanged") return;
   (async () => {
     if (message.followed && message.fromThisTab && message.channelId) await applyPolicyToFollow(message.channelId);
-    await load(message.followed ? message.channelId : undefined);
+    await load();
   })();
 });
 
@@ -99,16 +100,34 @@ async function applyPolicyToFollow(channelId: string): Promise<void> {
   }
 }
 
-async function load(followedId?: string): Promise<void> {
+addEventListener("message", (e: MessageEvent) => {
+  if (!active || e.source !== window || e.data?.type !== FOLLOWINGS_MESSAGE) return;
+  let page: ReturnType<typeof parseFollowings>;
   try {
-    [channels, groups, ungroupedNotify, ungroupedOrder] = await Promise.all([
+    page = parseFollowings(e.data.body);
+  } catch {
+    return;
+  }
+  if (!page) return;
+  channelsVersion++;
+  const fresh = new Set(page.list.map((c) => c.channelId));
+  channels = page.complete ? page.list : [...page.list, ...channels.filter((c) => !fresh.has(c.channelId))];
+  sync();
+  render();
+  applyToNewFollows();
+});
+
+async function load(): Promise<void> {
+  const version = channelsVersion;
+  try {
+    let fetched: FollowingChannel[];
+    [fetched, groups, ungroupedNotify, ungroupedOrder] = await Promise.all([
       fetchFollowings(),
       getGroups(),
       getUngroupedNotify(),
       getUngroupedOrder(),
     ]);
-    const i = channels.findIndex((c) => c.channelId === followedId && !c.openLive);
-    if (i >= 0) channels[i] = await withLiveStatus(channels[i]).catch(() => channels[i]);
+    if (version === channelsVersion) channels = fetched;
   } catch (e) {
     console.debug("[chzzk-tools] followings:", e);
     channels = [];
@@ -150,6 +169,8 @@ function sync(): void {
     restore();
     reactList = list;
     captureTemplates(list, nav);
+  } else if ((!templates.live || !templates.offline) && captureItemTemplates(list)) {
+    render();
   }
   if (!templates.live && !templates.offline) return;
 
@@ -185,12 +206,7 @@ function findReactList(): HTMLUListElement | null {
 }
 
 function captureTemplates(list: HTMLUListElement, nav: Element): void {
-  for (const li of list.querySelectorAll<HTMLLIElement>(":scope > li")) {
-    const profile = li.querySelector(tok("profile"));
-    if (!profile || !li.querySelector(tok("information"))) continue;
-    if (hasToken(profile, "is_live")) templates.live ??= clone(li);
-    else templates.offline ??= clone(li);
-  }
+  captureItemTemplates(list);
   const header = nav.querySelector<HTMLElement>(`:scope > ${tok("header")}`);
   if (header) {
     templates.header = clone(header);
@@ -200,6 +216,17 @@ function captureTemplates(list: HTMLUListElement, nav: Element): void {
     );
     if (arrow) templates.arrow = clone(arrow);
   }
+}
+
+function captureItemTemplates(list: HTMLUListElement): boolean {
+  const before = [templates.live, templates.offline];
+  for (const li of list.querySelectorAll<HTMLLIElement>(":scope > li")) {
+    const profile = li.querySelector(tok("profile"));
+    if (!profile || !li.querySelector(tok("information"))) continue;
+    if (hasToken(profile, "is_live")) templates.live ??= clone(li);
+    else templates.offline ??= clone(li);
+  }
+  return templates.live !== before[0] || templates.offline !== before[1];
 }
 
 function placeAddButton(nav: Element): void {
