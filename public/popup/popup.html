@@ -10,6 +10,14 @@
     <input type="checkbox" id="enabled">
     <span>사용</span>
   </label>
+  <label class="field">
+    <span>충전 후 "계속 진행할까요?" 팝업</span>
+    <select id="chargeConfirmAction">
+      <option value="none">반응 없음</option>
+      <option value="cancel">자동으로 취소</option>
+      <option value="donate">자동으로 후원하기</option>
+    </select>
+  </label>
   <script src="popup.js"></script>
 </body>
 </html>

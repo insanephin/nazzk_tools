@@ -17,3 +17,18 @@ h1 {
   gap: 8px;
   cursor: pointer;
 }
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  font-size: 13px;
+}
+.field select {
+  font: inherit;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid #3a3b3f;
+  background: #1f2023;
+  color: inherit;
+}
