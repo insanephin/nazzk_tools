@@ -1,4 +1,4 @@
-import { fetchFollowings, setNotification, type FollowingChannel } from "../shared/following";
+import { fetchFollowings, setNotification, withLiveStatus, type FollowingChannel } from "../shared/following";
 import {
   createGroup,
   getGroups,
@@ -85,7 +85,7 @@ chrome.runtime.onMessage.addListener((message: FollowMessage) => {
   if (!active || message.type !== "followingsChanged") return;
   (async () => {
     if (message.followed && message.fromThisTab && message.channelId) await applyPolicyToFollow(message.channelId);
-    await load();
+    await load(message.followed ? message.channelId : undefined);
   })();
 });
 
@@ -99,7 +99,7 @@ async function applyPolicyToFollow(channelId: string): Promise<void> {
   }
 }
 
-async function load(): Promise<void> {
+async function load(followedId?: string): Promise<void> {
   try {
     [channels, groups, ungroupedNotify, ungroupedOrder] = await Promise.all([
       fetchFollowings(),
@@ -107,6 +107,8 @@ async function load(): Promise<void> {
       getUngroupedNotify(),
       getUngroupedOrder(),
     ]);
+    const i = channels.findIndex((c) => c.channelId === followedId && !c.openLive);
+    if (i >= 0) channels[i] = await withLiveStatus(channels[i]).catch(() => channels[i]);
   } catch (e) {
     console.debug("[chzzk-tools] followings:", e);
     channels = [];

@@ -58,6 +58,28 @@ function toChannel(raw: RawFollowing): FollowingChannel {
   };
 }
 
+interface RawLiveStatus {
+  code: number;
+  message: string | null;
+  content?: { status?: string; liveTitle?: string | null; liveCategoryValue?: string | null; concurrentUserCount?: number } | null;
+}
+
+export async function withLiveStatus(c: FollowingChannel): Promise<FollowingChannel> {
+  const url = `https://api.chzzk.naver.com/polling/v2/channels/${c.channelId}/live-status`;
+  const res = await fetch(url, { credentials: "include" });
+  const body = (await res.json()) as RawLiveStatus;
+  if (body.code !== 200) throw new Error(body.message ?? `code ${body.code}`);
+  const live = body.content;
+  if (live?.status !== "OPEN") return c;
+  return {
+    ...c,
+    openLive: true,
+    liveTitle: live.liveTitle ?? null,
+    liveCategory: live.liveCategoryValue ?? null,
+    viewers: live.concurrentUserCount ?? 0,
+  };
+}
+
 export async function setNotification(channelId: string, on: boolean): Promise<void> {
   const url = `https://api.chzzk.naver.com/service/v1/channels/${channelId}/notification`;
   const res = await fetch(url, { method: on ? "PUT" : "DELETE", credentials: "include" });
