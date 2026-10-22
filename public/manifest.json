@@ -34,7 +34,7 @@
     }
   ],
   "action": {
-    "default_title": "Chzzk Tools",
+    "default_title": "치지직·카페 도구집",
     "default_popup": "popup/popup.html"
   }
 }
