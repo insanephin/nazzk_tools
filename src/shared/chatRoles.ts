@@ -1,5 +1,5 @@
-export const CHAT_ROLE_ATTR = "data-chzzk-tools-chat-role";
-export const CHAT_KEY_ATTR = "data-chzzk-tools-chat-key";
+export const CHAT_ROLE_ATTR = "data-nazzk-toolkit-chat-role";
+export const CHAT_KEY_ATTR = "data-nazzk-toolkit-chat-key";
 
 export type ChatRole = "streamer" | "manager" | "viewer";
 

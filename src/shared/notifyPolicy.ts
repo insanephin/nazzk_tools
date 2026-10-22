@@ -1,4 +1,4 @@
-export const NOTIFY_ATTR = "data-chzzk-tools-notify";
+export const NOTIFY_ATTR = "data-nazzk-toolkit-notify";
 
 export interface NotifyPolicy {
   channels: Record<string, boolean | null>;

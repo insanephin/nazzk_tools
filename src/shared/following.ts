@@ -19,7 +19,7 @@ interface RawResponse {
 }
 
 const BASE = "https://api.chzzk.naver.com/service/v1/channels/followings";
-export const FOLLOWINGS_MESSAGE = "chzzk-tools:followings";
+export const FOLLOWINGS_MESSAGE = "nazzk-toolkit:followings";
 const PAGE_SIZE = 100;
 
 export async function fetchFollowings(): Promise<FollowingChannel[]> {

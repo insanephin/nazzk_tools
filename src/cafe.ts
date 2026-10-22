@@ -1,8 +1,8 @@
 import { getSettings } from "./shared/settings";
 import { STEAM_PLAYER_PAGE, type SteamTrailer } from "./shared/steam";
 
-const FRAME_NAME = "chzzk-tools-cafe";
-const OVERLAY_ID = "chzzk-tools-cafe-overlay";
+const FRAME_NAME = "nazzk-toolkit-cafe";
+const OVERLAY_ID = "nazzk-toolkit-cafe-overlay";
 const ARTICLE_PATH = [
   /^\/(f-e|ca-fe)\/cafes\/\d+\/articles\/\d+/,
   /^\/ArticleRead\.nhn$/i,
@@ -69,7 +69,7 @@ function embedClips(): void {
     }
     const uid = matchHref(anchor.href, CLIP_URL);
     if (!uid) continue;
-    const played = document.querySelector(`iframe[data-chzzk-tools-clip="${uid}"]`);
+    const played = document.querySelector(`iframe[data-nazzk-toolkit-clip="${uid}"]`);
     const card = anchor.closest<HTMLElement>(".se-module-oglink");
     if (card) {
       card.querySelectorAll<HTMLElement>("a[href]").forEach((a) => (a.dataset[CLIP_DONE] = "1"));
@@ -94,7 +94,7 @@ function hideClipLink(anchor: HTMLAnchorElement, block: HTMLElement): void {
 // Keeps the Steam card (title, price) and adds the first trailer below it.
 function embedSteam(anchor: HTMLAnchorElement, appId: string): void {
   const key = `steam:${appId}`;
-  if (document.querySelector(`iframe[data-chzzk-tools-clip="${key}"]`)) return;
+  if (document.querySelector(`iframe[data-nazzk-toolkit-clip="${key}"]`)) return;
   const block = anchor.closest<HTMLElement>(".se-section, p") ?? anchor;
   // Inserted hidden right away so other links to the same app are deduped while the fetch runs.
   const frame = playerFrame(key);

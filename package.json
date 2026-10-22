@@ -1,5 +1,5 @@
 {
-  "name": "chzzk-tools",
+  "name": "nazzk-toolkit",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,7 +7,7 @@
     "dev": "node build.mjs --watch",
     "build": "node build.mjs",
     "typecheck": "tsc",
-    "zip": "npm run typecheck && npm run build && cd dist && zip -r ../chzzk-tools.zip ."
+    "zip": "npm run typecheck && npm run build && cd dist && zip -r ../nazzk-toolkit.zip ."
   },
   "devDependencies": {
     "@types/chrome": "^0.3.5",

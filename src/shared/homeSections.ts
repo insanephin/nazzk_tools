@@ -1,5 +1,5 @@
-export const SLOT_ATTR = "data-chzzk-tools-slot";
-export const SLOT_TITLE_ATTR = "data-chzzk-tools-slot-title";
+export const SLOT_ATTR = "data-nazzk-toolkit-slot";
+export const SLOT_TITLE_ATTR = "data-nazzk-toolkit-slot-title";
 
 export const SCHEDULE_BANNER = "SCHEDULE_BANNER";
 export const AD_BANNER = "AD_BANNER";

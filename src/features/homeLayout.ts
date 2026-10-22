@@ -13,7 +13,7 @@ import {
 } from "../shared/homeSections";
 import { orderDialog } from "./dialog";
 
-const MARK = "data-chzzk-tools";
+const MARK = "data-nazzk-toolkit";
 const GAP = "30px";
 const TOOLBAR_GAP = "12px";
 const LAST = 1_000_000;

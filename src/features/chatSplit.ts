@@ -1,7 +1,7 @@
 import { CHAT_KEY_ATTR, CHAT_ROLE_ATTR } from "../shared/chatRoles";
 
-const MARK = "data-chzzk-tools";
-const STAFF_ATTR = "data-chzzk-tools-chat-staff";
+const MARK = "data-nazzk-toolkit";
+const STAFF_ATTR = "data-nazzk-toolkit-chat-staff";
 const STAFF_ITEMS = `[${CHAT_ROLE_ATTR}="streamer"], [${CHAT_ROLE_ATTR}="manager"]`;
 const MAX_STAFF = 200;
 

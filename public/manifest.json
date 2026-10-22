@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Nazzk Toolkit",
+  "name": "네지직 도구집",
   "version": "1.0.0",
-  "description": "치지직·카페 도구집",
+  "description": "치지직·카페 UI/UX 개선 도구 모음집",
   "permissions": ["storage", "webRequest"],
   "host_permissions": ["https://chzzk.naver.com/*", "https://api.chzzk.naver.com/*", "https://store.steampowered.com/*"],
   "background": {
@@ -34,7 +34,7 @@
     }
   ],
   "action": {
-    "default_title": "치지직·카페 도구집",
+    "default_title": "네지직 도구집",
     "default_popup": "popup/popup.html"
   }
 }

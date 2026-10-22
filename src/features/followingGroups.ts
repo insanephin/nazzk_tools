@@ -20,7 +20,7 @@ import {
 import { NOTIFY_ATTR, type NotifyPolicy } from "../shared/notifyPolicy";
 import { alertDialog, confirmDialog, promptDialog } from "./dialog";
 
-const MARK = "data-chzzk-tools";
+const MARK = "data-nazzk-toolkit";
 const REFRESH_MS = 60_000;
 
 let active = false;
@@ -99,7 +99,7 @@ async function applyPolicyToFollow(channelId: string): Promise<void> {
   try {
     await setNotification(channelId, policy);
   } catch (e) {
-    console.debug("[chzzk-tools] notification:", channelId, e);
+    console.debug("[nazzk-toolkit] notification:", channelId, e);
   }
 }
 
@@ -132,7 +132,7 @@ async function load(): Promise<void> {
     ]);
     if (version === channelsVersion) channels = fetched;
   } catch (e) {
-    console.debug("[chzzk-tools] followings:", e);
+    console.debug("[nazzk-toolkit] followings:", e);
     channels = [];
     sync();
     return;
@@ -566,7 +566,7 @@ async function applyPolicy(list: FollowingChannel[]): Promise<void> {
       await setNotification(c.channelId, policy);
       c.notification = policy;
     } catch (e) {
-      console.debug("[chzzk-tools] notification:", c.channelId, e);
+      console.debug("[nazzk-toolkit] notification:", c.channelId, e);
     }
   }
   render();
@@ -610,7 +610,7 @@ async function setSectionNotification(sectionId: string, name: string, on: boole
       await setNotification(c.channelId, on);
       c.notification = on;
     } catch (e) {
-      console.debug("[chzzk-tools] notification:", c.channelId, e);
+      console.debug("[nazzk-toolkit] notification:", c.channelId, e);
       failed.push(c.channelName);
     }
   }
