@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "Chzzk Tools",
-  "version": "0.1.0",
-  "description": "치지직(chzzk.naver.com) 편의 기능 모음",
+  "name": "Nazzk Toolkit",
+  "version": "1.0.0",
+  "description": "치지직·카페 도구집",
   "permissions": ["storage", "webRequest"],
-  "host_permissions": ["https://chzzk.naver.com/*", "https://api.chzzk.naver.com/*"],
+  "host_permissions": ["https://chzzk.naver.com/*", "https://api.chzzk.naver.com/*", "https://store.steampowered.com/*"],
   "background": {
     "service_worker": "background.js"
   },
@@ -19,6 +19,18 @@
       "js": ["pageHook.js"],
       "run_at": "document_start",
       "world": "MAIN"
+    },
+    {
+      "matches": ["https://cafe.naver.com/*", "https://m.cafe.naver.com/*"],
+      "js": ["cafe.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["steam/player.html", "steam/player.js"],
+      "matches": ["https://cafe.naver.com/*", "https://m.cafe.naver.com/*"]
     }
   ],
   "action": {

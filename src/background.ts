@@ -1,3 +1,5 @@
+import { fetchSteamTrailer } from "./shared/steam";
+
 chrome.webRequest.onCompleted.addListener(
   async (details) => {
     if (details.statusCode !== 200 || (details.method !== "POST" && details.method !== "DELETE")) return;
@@ -16,3 +18,9 @@ chrome.webRequest.onCompleted.addListener(
   },
   { urls: ["https://api.chzzk.naver.com/service/v1/channels/*/follow"] },
 );
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type !== "steamTrailer") return;
+  fetchSteamTrailer(message.appId).then(sendResponse, () => sendResponse(null));
+  return true;
+});

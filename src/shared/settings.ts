@@ -4,9 +4,11 @@ export interface Settings {
   enabled: boolean;
   chargeConfirmAction: ChargeConfirmAction;
   chatSplit: boolean;
+  cafePopup: boolean;
+  cafeMobileRedirect: boolean;
 }
 
-const DEFAULT_SETTINGS: Settings = { enabled: true, chargeConfirmAction: "cancel", chatSplit: true };
+const DEFAULT_SETTINGS: Settings = { enabled: true, chargeConfirmAction: "cancel", chatSplit: true, cafePopup: true, cafeMobileRedirect: true };
 
 export async function getSettings(): Promise<Settings> {
   return (await chrome.storage.sync.get(DEFAULT_SETTINGS)) as Settings;

@@ -64,7 +64,7 @@ function policyFor(channelId: string): boolean | null {
   }
 }
 
-const HOME_CONTENT = ["section", "swap", "content"].map((n) => `:is([class^="_${n}_"], [class*=" _${n}_"])`).join(" > ");
+const HOME_CONTENT = ["section", "swap", "content"].map(cls).join(" > ");
 let tagQueued = false;
 
 new MutationObserver(() => {

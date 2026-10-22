@@ -11,8 +11,10 @@ const options = {
   entryPoints: {
     background: "src/background.ts",
     content: "src/content.ts",
+    cafe: "src/cafe.ts",
     pageHook: "src/pageHook.ts",
     "popup/popup": "src/popup/popup.ts",
+    "steam/player": "src/steam/player.ts",
   },
   outdir,
   bundle: true,
