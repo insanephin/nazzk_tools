@@ -1,5 +1,6 @@
 import { mountFollowingGroups, unmountFollowingGroups } from "./features/followingGroups";
 import { mountChargeConfirm, unmountChargeConfirm } from "./features/chargeConfirm";
+import { mountChatSplit, unmountChatSplit } from "./features/chatSplit";
 import { mountHomeLayout, unmountHomeLayout } from "./features/homeLayout";
 import { getSettings } from "./shared/settings";
 
@@ -11,6 +12,8 @@ async function apply(): Promise<void> {
   else unmountHomeLayout();
   if (settings.enabled && settings.chargeConfirmAction !== "none") mountChargeConfirm(settings.chargeConfirmAction);
   else unmountChargeConfirm();
+  if (settings.enabled && settings.chatSplit) mountChatSplit();
+  else unmountChatSplit();
 }
 
 chrome.storage.onChanged.addListener((_changes, area) => {
@@ -23,6 +26,7 @@ addEventListener("unhandledrejection", (e) => {
   unmountFollowingGroups();
   unmountHomeLayout();
   unmountChargeConfirm();
+  unmountChatSplit();
 });
 
 apply();

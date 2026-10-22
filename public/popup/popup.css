@@ -32,3 +32,6 @@ h1 {
   background: #1f2023;
   color: inherit;
 }
+.row + .row {
+  margin-top: 8px;
+}

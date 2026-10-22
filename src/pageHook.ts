@@ -1,3 +1,4 @@
+import { CHAT_KEY_ATTR, CHAT_ROLE_ATTR, chatRoleOf } from "./shared/chatRoles";
 import { FOLLOWINGS_MESSAGE } from "./shared/following";
 import { AD_BANNER, PREMIUM_LIVE, SCHEDULE_BANNER, SLOT_ATTR, SLOT_TITLE_ATTR } from "./shared/homeSections";
 import { NOTIFY_ATTR, type NotifyPolicy } from "./shared/notifyPolicy";
@@ -72,8 +73,46 @@ new MutationObserver(() => {
   requestAnimationFrame(() => {
     tagQueued = false;
     tagHomeSections();
+    tagChatItems();
   });
 }).observe(document, { childList: true, subtree: true });
+
+const CHAT_ITEMS = `[role="log"] > ${cls("wrapper")} > ${cls("item")}:not([${CHAT_ROLE_ATTR}])`;
+
+function cls(name: string): string {
+  return `:is([class^="_${name}_"], [class*=" _${name}_"])`;
+}
+
+function tagChatItems(): void {
+  for (const el of document.querySelectorAll(CHAT_ITEMS)) {
+    const code = userRoleCodeOf(el);
+    const key = messageKeyOf(el);
+    if (code === null || key === null) continue;
+    el.setAttribute(CHAT_KEY_ATTR, key);
+    el.setAttribute(CHAT_ROLE_ATTR, chatRoleOf(code));
+  }
+}
+
+function messageKeyOf(el: Element): string | null {
+  for (let fiber = fiberOf(el); fiber && fiber.stateNode !== el.parentElement; fiber = fiber.return ?? null) {
+    if (fiber.key != null) return fiber.key;
+  }
+  return null;
+}
+
+function userRoleCodeOf(el: Element): string | null {
+  let fiber = fiberOf(el)?.child ?? null;
+  for (let depth = 0; fiber && depth < 3; depth++, fiber = fiber.child ?? null) {
+    const message = fiber.memoizedProps?.chatMessage;
+    if (message) return typeof message.profile?.userRoleCode === "string" ? message.profile.userRoleCode : "";
+  }
+  return null;
+}
+
+function fiberOf(el: Element): Fiber | null {
+  const key = Object.keys(el).find((k) => k.startsWith("__reactFiber$"));
+  return key ? ((el as any)[key] as Fiber) : null;
+}
 
 function tagHomeSections(): void {
   if (location.pathname !== "/") return;
@@ -89,15 +128,16 @@ function tagHomeSections(): void {
 }
 
 interface Fiber {
+  key?: string | null;
   memoizedProps?: Record<string, any> | null;
   stateNode?: unknown;
+  child?: Fiber | null;
   return?: Fiber | null;
 }
 
 function slotOf(el: Element, container: Element): { key: string; title?: string } | null {
   if (el.querySelector("#home_banner")) return { key: AD_BANNER };
-  const fiberKey = Object.keys(el).find((k) => k.startsWith("__reactFiber$"));
-  let fiber = fiberKey ? ((el as any)[fiberKey] as Fiber) : null;
+  let fiber = fiberOf(el);
   while (fiber && fiber.stateNode !== container) {
     const props = fiber.memoizedProps;
     const slot = props?.slot;
