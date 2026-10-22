@@ -5,31 +5,39 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <h1>치지직·카페 도구집</h1>
-  <label class="row">
-    <input type="checkbox" id="enabled">
-    <span>사용</span>
-  </label>
-  <label class="row">
-    <input type="checkbox" id="chatSplit">
-    <span>채팅창 매니저·스트리머 분리</span>
-  </label>
-  <label class="row">
-    <input type="checkbox" id="cafePopup">
-    <span>카페 게시글 페이지 안 팝업으로 열기</span>
-  </label>
-  <label class="row">
-    <input type="checkbox" id="cafeMobileRedirect">
-    <span>모바일 카페를 PC 카페로 열기</span>
-  </label>
-  <label class="field">
-    <span>충전 후 "계속 진행할까요?" 팝업</span>
-    <select id="chargeConfirmAction">
-      <option value="none">반응 없음</option>
-      <option value="cancel">자동으로 취소</option>
-      <option value="donate">자동으로 후원하기</option>
-    </select>
-  </label>
+  <header>
+    <h1>치지직·카페 도구집</h1>
+    <input type="checkbox" class="switch" id="enabled" aria-label="사용">
+  </header>
+
+  <section>
+    <h2>치지직</h2>
+    <label class="row">
+      <span>채팅창 매니저·스트리머 분리</span>
+      <input type="checkbox" class="switch" id="chatSplit">
+    </label>
+    <label class="row column">
+      <span>충전 후 "계속 진행할까요?" 팝업</span>
+      <select id="chargeConfirmAction">
+        <option value="none">반응 없음</option>
+        <option value="cancel">자동으로 취소</option>
+        <option value="donate">자동으로 후원하기</option>
+      </select>
+    </label>
+  </section>
+
+  <section>
+    <h2>카페</h2>
+    <label class="row">
+      <span>게시글 페이지 안 팝업으로 열기</span>
+      <input type="checkbox" class="switch" id="cafePopup">
+    </label>
+    <label class="row">
+      <span>모바일 카페를 PC 카페로 열기</span>
+      <input type="checkbox" class="switch" id="cafeMobileRedirect">
+    </label>
+  </section>
+
   <script src="popup.js"></script>
 </body>
 </html>
