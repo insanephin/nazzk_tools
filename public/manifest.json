@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "네지직 도구집",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "치지직·카페 UI/UX 개선 도구 모음집",
   "icons": {
     "16": "icons/icon16.png",

@@ -21,6 +21,7 @@ const FRAME_CSS = `
 const CLIP_URL = /chzzk\.naver\.com\/(?:embed\/)?clips?\/(\w+)/;
 const STEAM_URL = /store\.steampowered\.com\/app\/(\d+)/;
 const CLIP_DONE = "chzzkToolsClip";
+const CLIP_ATTR = "data-chzzk-tools-clip";
 
 let popupEnabled = false;
 
@@ -69,7 +70,7 @@ function embedClips(): void {
     }
     const uid = matchHref(anchor.href, CLIP_URL);
     if (!uid) continue;
-    const played = document.querySelector(`iframe[data-nazzk-toolkit-clip="${uid}"]`);
+    const played = document.querySelector(`iframe[${CLIP_ATTR}="${uid}"]`);
     const card = anchor.closest<HTMLElement>(".se-module-oglink");
     if (card) {
       card.querySelectorAll<HTMLElement>("a[href]").forEach((a) => (a.dataset[CLIP_DONE] = "1"));
@@ -94,7 +95,7 @@ function hideClipLink(anchor: HTMLAnchorElement, block: HTMLElement): void {
 // Keeps the Steam card (title, price) and adds the first trailer below it.
 function embedSteam(anchor: HTMLAnchorElement, appId: string): void {
   const key = `steam:${appId}`;
-  if (document.querySelector(`iframe[data-nazzk-toolkit-clip="${key}"]`)) return;
+  if (document.querySelector(`iframe[${CLIP_ATTR}="${key}"]`)) return;
   const block = anchor.closest<HTMLElement>(".se-section, p") ?? anchor;
   // Inserted hidden right away so other links to the same app are deduped while the fetch runs.
   const frame = playerFrame(key);
@@ -129,7 +130,7 @@ function clipPlayer(uid: string): HTMLIFrameElement {
 
 function playerFrame(key: string): HTMLIFrameElement {
   const frame = document.createElement("iframe");
-  frame.dataset[CLIP_DONE] = key;
+  frame.setAttribute(CLIP_ATTR, key);
   frame.allow = "autoplay; fullscreen; clipboard-write";
   frame.allowFullscreen = true;
   frame.style.cssText = "display:block;width:100%;aspect-ratio:16/9;margin:8px 0;border:0;border-radius:8px;background:#000";
