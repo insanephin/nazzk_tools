@@ -139,7 +139,6 @@ function playerFrame(key: string): HTMLIFrameElement {
   const frame = document.createElement("iframe");
   frame.setAttribute(CLIP_ATTR, key);
   frame.allow = "autoplay; fullscreen; clipboard-write";
-  frame.allowFullscreen = true;
   frame.style.cssText = "display:block;width:100%;aspect-ratio:16/9;margin:8px 0;border:0;border-radius:8px;background:#000";
   return frame;
 }
