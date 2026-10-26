@@ -1,4 +1,5 @@
 import { CHAT_KEY_ATTR, CHAT_ROLE_ATTR, chatRoleOf } from "./shared/chatRoles";
+import { cls, oncePerFrame } from "./shared/dom";
 import { FOLLOWINGS_MESSAGE } from "./shared/following";
 import { AD_BANNER, PREMIUM_LIVE, SCHEDULE_BANNER, SLOT_ATTR, SLOT_TITLE_ATTR } from "./shared/homeSections";
 import { NOTIFY_ATTR, type NotifyPolicy } from "./shared/notifyPolicy";
@@ -65,23 +66,14 @@ function policyFor(channelId: string): boolean | null {
 }
 
 const HOME_CONTENT = ["section", "swap", "content"].map(cls).join(" > ");
-let tagQueued = false;
-
-new MutationObserver(() => {
-  if (tagQueued) return;
-  tagQueued = true;
-  requestAnimationFrame(() => {
-    tagQueued = false;
-    tagHomeSections();
-    tagChatItems();
-  });
-}).observe(document, { childList: true, subtree: true });
-
 const CHAT_ITEMS = `[role="log"] > ${cls("wrapper")} > ${cls("item")}:not([${CHAT_ROLE_ATTR}])`;
 
-function cls(name: string): string {
-  return `:is([class^="_${name}_"], [class*=" _${name}_"])`;
-}
+new MutationObserver(
+  oncePerFrame(() => {
+    tagHomeSections();
+    tagChatItems();
+  }),
+).observe(document, { childList: true, subtree: true });
 
 function tagChatItems(): void {
   for (const el of document.querySelectorAll(CHAT_ITEMS)) {

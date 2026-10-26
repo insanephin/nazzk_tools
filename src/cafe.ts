@@ -1,3 +1,4 @@
+import { oncePerFrame } from "./shared/dom";
 import { getSettings } from "./shared/settings";
 import { STEAM_PLAYER_PAGE, type SteamTrailer } from "./shared/steam";
 
@@ -5,9 +6,10 @@ const FRAME_NAME = "nazzk-toolkit-cafe";
 const SECTION_HOST = "section.cafe.naver.com";
 const OPEN_PARAM = "nazzk_article";
 const OVERLAY_ID = "nazzk-toolkit-cafe-overlay";
+const ARTICLE_READ = /^\/ArticleRead\.nhn$/i;
 const ARTICLE_PATH = [
   /^\/(f-e|ca-fe)\/cafes\/\d+\/articles\/\d+\/?$/,
-  /^\/ArticleRead\.nhn$/i,
+  ARTICLE_READ,
   /^\/[\w-]+\/\d+\/?$/,
 ];
 
@@ -27,8 +29,10 @@ const FRAME_CSS = `
 
 const CLIP_URL = /chzzk\.naver\.com\/(?:embed\/)?clips?\/(\w+)/;
 const STEAM_URL = /store\.steampowered\.com\/app\/(\d+)/;
-const CLIP_DONE = "chzzkToolsClip";
-const CLIP_ATTR = "data-chzzk-tools-clip";
+const EMBED_DONE_ATTR = "data-nazzk-toolkit-embed-done";
+const EMBED_ATTR = "data-nazzk-toolkit-embed";
+const OGLINK = ".se-module-oglink";
+const FRAME_ALLOW = "autoplay; fullscreen; clipboard-write";
 
 let popupEnabled = false;
 
@@ -54,25 +58,19 @@ async function apply(): Promise<void> {
 }
 
 function watchClips(): void {
-  let queued = false;
-  new MutationObserver(() => {
-    if (queued) return;
-    queued = true;
-    requestAnimationFrame(() => {
-      queued = false;
-      embedClips();
-    });
-  }).observe(document, { childList: true, subtree: true });
+  new MutationObserver(oncePerFrame(embedClips)).observe(document, { childList: true, subtree: true });
 }
 
 function embedClips(): void {
+  // Link-preview cards go first so they become the player and a bare link to the same clip only gets hidden.
+  const pending = `a[href]:not([${EMBED_DONE_ATTR}])`;
   const anchors = [
-    ...document.querySelectorAll<HTMLAnchorElement>(".se-module-oglink a[href]"),
-    ...document.querySelectorAll<HTMLAnchorElement>("a[href]"),
+    ...document.querySelectorAll<HTMLAnchorElement>(`${OGLINK} ${pending}`),
+    ...document.querySelectorAll<HTMLAnchorElement>(pending),
   ];
   for (const anchor of anchors) {
-    if (anchor.dataset[CLIP_DONE]) continue;
-    anchor.dataset[CLIP_DONE] = "1";
+    if (anchor.hasAttribute(EMBED_DONE_ATTR)) continue;
+    anchor.setAttribute(EMBED_DONE_ATTR, "");
     const appId = matchHref(anchor.href, STEAM_URL);
     if (appId) {
       embedSteam(anchor, appId);
@@ -80,10 +78,10 @@ function embedClips(): void {
     }
     const uid = matchHref(anchor.href, CLIP_URL);
     if (!uid) continue;
-    const played = document.querySelector(`iframe[${CLIP_ATTR}="${uid}"]`);
-    const card = anchor.closest<HTMLElement>(".se-module-oglink");
+    const played = document.querySelector(`iframe[${EMBED_ATTR}="${uid}"]`);
+    const card = anchor.closest<HTMLElement>(OGLINK);
     if (card) {
-      card.querySelectorAll<HTMLElement>("a[href]").forEach((a) => (a.dataset[CLIP_DONE] = "1"));
+      markLinksDone(card);
       const section = card.closest<HTMLElement>(".se-section") ?? card;
       if (played) section.remove();
       else section.replaceWith(clipPlayer(uid));
@@ -104,10 +102,10 @@ function hideClipLink(anchor: HTMLAnchorElement, block: HTMLElement): void {
 
 function embedSteam(anchor: HTMLAnchorElement, appId: string): void {
   const key = `steam:${appId}`;
-  const card = anchor.closest<HTMLElement>(".se-module-oglink");
-  card?.querySelectorAll<HTMLElement>("a[href]").forEach((a) => (a.dataset[CLIP_DONE] = "1"));
+  const card = anchor.closest<HTMLElement>(OGLINK);
+  if (card) markLinksDone(card);
   const block = (card ?? anchor).closest<HTMLElement>(".se-section, p") ?? anchor;
-  if (document.querySelector(`iframe[${CLIP_ATTR}="${key}"]`)) {
+  if (document.querySelector(`iframe[${EMBED_ATTR}="${key}"]`)) {
     if (card) block.remove();
     return;
   }
@@ -130,6 +128,10 @@ function embedSteam(anchor: HTMLAnchorElement, appId: string): void {
   );
 }
 
+function markLinksDone(card: HTMLElement): void {
+  for (const a of card.querySelectorAll("a[href]")) a.setAttribute(EMBED_DONE_ATTR, "");
+}
+
 function matchHref(href: string, re: RegExp): string | null {
   try {
     return decodeURIComponent(href).match(re)?.[1] ?? null;
@@ -146,7 +148,7 @@ function clipPlayer(uid: string): HTMLIFrameElement {
 
 function steamWidget(key: string, appId: string): HTMLIFrameElement {
   const frame = document.createElement("iframe");
-  frame.setAttribute(CLIP_ATTR, key);
+  frame.setAttribute(EMBED_ATTR, key);
   frame.src = `https://store.steampowered.com/widget/${appId}/?l=koreana`;
   frame.style.cssText = "display:block;width:100%;max-width:646px;height:190px;margin:8px 0;border:0";
   return frame;
@@ -154,8 +156,8 @@ function steamWidget(key: string, appId: string): HTMLIFrameElement {
 
 function playerFrame(key: string): HTMLIFrameElement {
   const frame = document.createElement("iframe");
-  frame.setAttribute(CLIP_ATTR, key);
-  frame.allow = "autoplay; fullscreen; clipboard-write";
+  frame.setAttribute(EMBED_ATTR, key);
+  frame.allow = FRAME_ALLOW;
   frame.style.cssText = "display:block;width:100%;aspect-ratio:16/9;margin:8px 0;border:0;border-radius:8px;background:#000";
   return frame;
 }
@@ -198,7 +200,7 @@ function openModal(href: string): void {
 
   const frame = doc.createElement("iframe");
   frame.name = FRAME_NAME;
-  frame.allow = "autoplay; fullscreen; clipboard-write";
+  frame.allow = FRAME_ALLOW;
   frame.src = href;
   frame.style.cssText = "width:100%;height:100%;border:0;display:block";
 
@@ -221,7 +223,7 @@ function articleFrameUrl(href: string): string {
   const url = new URL(href);
   const ids = articleIds(url);
   if (!ids) return href;
-  if (/^\/ArticleRead\.nhn$/i.test(url.pathname)) url.search = "";
+  if (ARTICLE_READ.test(url.pathname)) url.search = "";
   url.pathname = `/ca-fe/cafes/${ids[0]}/articles/${ids[1]}`;
   return url.href;
 }
@@ -231,7 +233,7 @@ function articleIds(url: URL): [string, string] | null {
   if (path) return [path[1], path[2]];
   const club = url.searchParams.get("clubid");
   const article = url.searchParams.get("articleid");
-  return /^\/ArticleRead\.nhn$/i.test(url.pathname) && club && article ? [club, article] : null;
+  return ARTICLE_READ.test(url.pathname) && club && article ? [club, article] : null;
 }
 
 function openViaList(anchor: HTMLAnchorElement): void {
@@ -345,7 +347,7 @@ function desktopUrl(url: URL): string {
     if (/^\d+$/.test(cafe)) return kind ? `${base}/f-e/cafes/${cafe}/${kind}/${id}` : `${base}/f-e/cafes/${cafe}`;
     return kind === "articles" ? `${base}/${cafe}/${id}` : `${base}/${cafe}`;
   }
-  if (/^\/ArticleRead\.nhn$/i.test(path) && q.get("clubid") && q.get("articleid")) {
+  if (ARTICLE_READ.test(path) && q.get("clubid") && q.get("articleid")) {
     return `${base}/f-e/cafes/${q.get("clubid")}/articles/${q.get("articleid")}`;
   }
   return `${base}${path}${url.search}${url.hash}`;

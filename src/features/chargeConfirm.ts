@@ -1,9 +1,9 @@
 import type { ChargeConfirmAction } from "../shared/settings";
 
 const TITLE = "치즈 충전 완료!";
-const LABELS: Record<Exclude<ChargeConfirmAction, "none">, string[]> = {
-  cancel: ["취소"],
-  donate: ["후원하기"],
+const LABELS: Record<Exclude<ChargeConfirmAction, "none">, string> = {
+  cancel: "취소",
+  donate: "후원하기",
 };
 const ARMED_MS = 10_000;
 
@@ -34,10 +34,10 @@ function onMessage(e: MessageEvent): void {
 
 function handleChargeConfirm(): void {
   if (action === "none" || Date.now() > armedUntil) return;
+  const label = LABELS[action];
   for (const dialog of document.querySelectorAll<HTMLElement>('[role="alertdialog"]')) {
     if (!dialog.textContent?.includes(TITLE)) continue;
-    const labels = LABELS[action];
-    const button = [...dialog.querySelectorAll("button")].find((b) => labels.includes(b.textContent?.trim() ?? ""));
+    const button = [...dialog.querySelectorAll("button")].find((b) => b.textContent?.trim() === label);
     if (!button) continue;
     armedUntil = 0;
     button.click();

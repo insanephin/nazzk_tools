@@ -17,16 +17,15 @@ import {
   type Anchor,
   type Group,
 } from "../shared/groups";
+import { MARK, cls, hasClass, oncePerFrame } from "../shared/dom";
 import { NOTIFY_ATTR, type NotifyPolicy } from "../shared/notifyPolicy";
 import { alertDialog, confirmDialog, promptDialog } from "./dialog";
 
-const MARK = "data-nazzk-toolkit";
 const REFRESH_MS = 60_000;
 
 let active = false;
 let observer: MutationObserver | null = null;
 let refreshTimer: number | undefined;
-let syncQueued = false;
 
 let channels: FollowingChannel[] = [];
 let channelsVersion = 0;
@@ -47,7 +46,7 @@ const templates: {
 export function mountFollowingGroups(): void {
   if (active) return;
   active = true;
-  observer = new MutationObserver(queueSync);
+  observer = new MutationObserver(oncePerFrame(sync));
   observer.observe(document.body, { childList: true, subtree: true });
   refreshTimer = window.setInterval(load, REFRESH_MS);
   load();
@@ -57,7 +56,9 @@ export function unmountFollowingGroups(): void {
   if (!active) return;
   active = false;
   observer?.disconnect();
+  observer = null;
   clearInterval(refreshTimer);
+  closeMenu();
   restore();
   document.documentElement.removeAttribute(NOTIFY_ATTR);
 }
@@ -94,7 +95,7 @@ function refreshReactList(): void {
 }
 
 async function applyPolicyToFollow(channelId: string): Promise<void> {
-  const policy = policyOf(groups.find((g) => g.channelIds.includes(channelId))?.id ?? "");
+  const policy = policyOf(groupIdOf(channelId));
   if (policy === undefined) return;
   try {
     await setNotification(channelId, policy);
@@ -150,20 +151,11 @@ async function applyToNewFollows(): Promise<void> {
   await applyPolicy(channels.filter((c) => !seen.has(c.channelId)));
 }
 
-function queueSync(): void {
-  if (syncQueued) return;
-  syncQueued = true;
-  requestAnimationFrame(() => {
-    syncQueued = false;
-    sync();
-  });
-}
-
 function sync(): void {
   if (!active) return;
   const list = findReactList();
   const nav = list?.closest("nav");
-  if (!list || !nav || !hasToken(nav, "is_expanded")) {
+  if (!list || !nav || !hasClass(nav, "is_expanded")) {
     restore();
     return;
   }
@@ -198,34 +190,34 @@ function findReactList(): HTMLUListElement | null {
   if (channels.length === 0) return null;
   const followed = new Set(channels.map((c) => c.channelId));
   for (const ul of document.querySelectorAll<HTMLUListElement>("nav ul")) {
-    if (ul.querySelector(tok("is_highlighted"))) continue;
-    const links = ul.querySelectorAll<HTMLAnchorElement>(`a${tok("item_link")}`);
+    if (ul.querySelector(cls("is_highlighted"))) continue;
+    const links = ul.querySelectorAll<HTMLAnchorElement>(`a${cls("item_link")}`);
     if ([...links].some((a) => followed.has(channelIdOf(a.href)))) return ul;
   }
   return null;
 }
 
 function captureTemplates(nav: Element): void {
-  const header = nav.querySelector<HTMLElement>(`:scope > ${tok("header")}`);
+  const header = nav.querySelector<HTMLElement>(`:scope > ${cls("header")}`);
   if (header) {
     templates.header = clone(header);
     templates.header.querySelectorAll("button").forEach((b) => b.remove());
     const arrow = [...header.querySelectorAll<HTMLButtonElement>(":scope > button")].find((b) =>
-      b.querySelector(tok("icon_arrow")),
+      b.querySelector(cls("icon_arrow")),
     );
     if (arrow) templates.arrow = clone(arrow);
   }
 }
 
 function showAllItems(nav: Element): void {
-  for (const box of nav.querySelectorAll<HTMLElement>(`:scope > ${tok("box")}`)) {
+  for (const box of nav.querySelectorAll<HTMLElement>(`:scope > ${cls("box")}`)) {
     hide(box);
     box.querySelector<HTMLButtonElement>('button[aria-expanded="false"]')?.click();
   }
 }
 
 function findRefreshButton(nav: Element): HTMLButtonElement | null {
-  return nav.querySelector<HTMLButtonElement>(`:scope > ${tok("header")} > button:not([${MARK}])`);
+  return nav.querySelector<HTMLButtonElement>(`:scope > ${cls("header")} > button:not([${MARK}])`);
 }
 
 function placeAddButton(nav: Element): void {
@@ -322,8 +314,9 @@ function layout(): void {
   const sectionIds = [...groups.map((g) => g.id), ""];
   const bySection = new Map<string, HTMLLIElement[]>(sectionIds.map((id) => [id, []]));
   const followed = new Set(channels.map((c) => c.channelId));
+  const groupOf = new Map(groups.flatMap((g) => g.channelIds.map((id) => [id, g.id] as const)));
   for (const li of reactList.querySelectorAll<HTMLLIElement>(`:scope > li:not([${MARK}])`)) {
-    const link = li.querySelector<HTMLAnchorElement>(`a${tok("item_link")}`);
+    const link = li.querySelector<HTMLAnchorElement>(`a${cls("item_link")}`);
     const channelId = link ? channelIdOf(link.href) : "";
     li.dataset.channelId = channelId;
     li.draggable = true;
@@ -331,7 +324,7 @@ function layout(): void {
       li.style.display = "none";
       continue;
     }
-    bySection.get(groups.find((g) => g.channelIds.includes(channelId))?.id ?? "")!.push(li);
+    bySection.get(groupOf.get(channelId) ?? "")!.push(li);
   }
 
   sectionIds.forEach((id, k) => {
@@ -360,8 +353,8 @@ function sortSection(sectionId: string, lis: HTMLLIElement[]): HTMLLIElement[] {
 }
 
 function isLive(li: HTMLLIElement): boolean {
-  const profile = li.querySelector(tok("profile"));
-  return profile ? hasToken(profile, "is_live") : false;
+  const profile = li.querySelector(cls("profile"));
+  return profile ? hasClass(profile, "is_live") : false;
 }
 
 function renderHeader(group: Group | null, name: string, collapsed: boolean, list: FollowingChannel[]): HTMLLIElement {
@@ -485,7 +478,7 @@ function onContextMenu(e: MouseEvent): void {
 
   let items: MenuItem[];
   if (channelId) {
-    const current = groups.find((g) => g.channelIds.includes(channelId))?.id ?? null;
+    const current = groupIdOf(channelId) || null;
     items = [
       { label: "그룹으로 이동", disabled: true },
       ...groups.map((g) => ({ label: g.name, checked: g.id === current, run: () => moveTo(channelId, g.id) })),
@@ -535,6 +528,10 @@ function sectionChannels(groupId: string): FollowingChannel[] {
   return ungrouped.sort((a, b) => (rank.get(a.channelId) ?? Infinity) - (rank.get(b.channelId) ?? Infinity));
 }
 
+function groupIdOf(channelId: string): string {
+  return groups.find((g) => g.channelIds.includes(channelId))?.id ?? "";
+}
+
 function policyOf(sectionId: string): boolean | undefined {
   return sectionId ? groups.find((g) => g.id === sectionId)?.notify : ungroupedNotify;
 }
@@ -557,19 +554,26 @@ async function savePolicy(sectionId: string, notify: boolean | undefined): Promi
 
 async function applyPolicy(list: FollowingChannel[]): Promise<void> {
   const targets = list.flatMap((c) => {
-    const policy = policyOf(groups.find((g) => g.channelIds.includes(c.channelId))?.id ?? "");
-    return policy === undefined || policy === c.notification ? [] : [{ c, policy }];
+    const policy = policyOf(groupIdOf(c.channelId));
+    return policy === undefined || policy === c.notification ? [] : [[c, policy] as const];
   });
   if (targets.length === 0) return;
-  for (const { c, policy } of targets) {
+  await updateNotifications(targets);
+  render();
+}
+
+async function updateNotifications(targets: (readonly [FollowingChannel, boolean])[]): Promise<FollowingChannel[]> {
+  const failed: FollowingChannel[] = [];
+  for (const [c, on] of targets) {
     try {
-      await setNotification(c.channelId, policy);
-      c.notification = policy;
+      await setNotification(c.channelId, on);
+      c.notification = on;
     } catch (e) {
       console.debug("[nazzk-toolkit] notification:", c.channelId, e);
+      failed.push(c);
     }
   }
-  render();
+  return failed;
 }
 
 async function moveTo(channelId: string, groupId: string | null, anchor?: Anchor): Promise<void> {
@@ -604,16 +608,7 @@ async function setSectionNotification(sectionId: string, name: string, on: boole
 
   busySections.add(sectionId);
   render();
-  const failed: string[] = [];
-  for (const c of members) {
-    try {
-      await setNotification(c.channelId, on);
-      c.notification = on;
-    } catch (e) {
-      console.debug("[nazzk-toolkit] notification:", c.channelId, e);
-      failed.push(c.channelName);
-    }
-  }
+  const failed = (await updateNotifications(members.map((c) => [c, on] as const))).map((c) => c.channelName);
   busySections.delete(sectionId);
   render();
   if (failed.length > 0) {
@@ -801,14 +796,6 @@ function closeOnOutside(e: PointerEvent): void {
 
 function closeOnEscape(e: KeyboardEvent): void {
   if (e.key === "Escape") closeMenu();
-}
-
-function hasToken(el: Element, name: string): boolean {
-  return [...el.classList].some((t) => t.startsWith(`_${name}_`));
-}
-
-function tok(name: string): string {
-  return `:is([class^="_${name}_"], [class*=" _${name}_"])`;
 }
 
 function clone<T extends Element>(el: T): T {

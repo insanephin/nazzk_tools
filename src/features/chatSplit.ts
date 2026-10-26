@@ -1,6 +1,6 @@
 import { CHAT_KEY_ATTR, CHAT_ROLE_ATTR } from "../shared/chatRoles";
+import { MARK, oncePerFrame } from "../shared/dom";
 
-const MARK = "data-nazzk-toolkit";
 const STAFF_ATTR = "data-nazzk-toolkit-chat-staff";
 const STAFF_ITEMS = `[${CHAT_ROLE_ATTR}="streamer"], [${CHAT_ROLE_ATTR}="manager"]`;
 const MAX_STAFF = 200;
@@ -26,14 +26,13 @@ const CSS = `
 
 let active = false;
 let observer: MutationObserver | null = null;
-let syncQueued = false;
 
 let log: HTMLElement | null = null;
 let style: HTMLStyleElement | null = null;
 let panel: HTMLElement | null = null;
 let list: HTMLElement | null = null;
 let viewerLabel: HTMLElement | null = null;
-let clones = new Map<string, HTMLElement>();
+const clones = new Map<string, HTMLElement>();
 
 export function mountChatSplit(): void {
   if (active) return;
@@ -42,7 +41,7 @@ export function mountChatSplit(): void {
   style.setAttribute(MARK, "");
   style.textContent = CSS;
   document.head.append(style);
-  observer = new MutationObserver(queueSync);
+  observer = new MutationObserver(oncePerFrame(sync));
   observer.observe(document.body, { childList: true, subtree: true, attributeFilter: [CHAT_ROLE_ATTR] });
   sync();
 }
@@ -56,15 +55,6 @@ export function unmountChatSplit(): void {
   style = null;
   removePanel();
   log = null;
-}
-
-function queueSync(): void {
-  if (syncQueued) return;
-  syncQueued = true;
-  requestAnimationFrame(() => {
-    syncQueued = false;
-    sync();
-  });
 }
 
 function sync(): void {
@@ -126,5 +116,5 @@ function removePanel(): void {
   panel?.remove();
   viewerLabel?.remove();
   panel = list = viewerLabel = null;
-  clones = new Map();
+  clones.clear();
 }

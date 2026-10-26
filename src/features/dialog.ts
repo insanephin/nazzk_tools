@@ -61,14 +61,8 @@ function showDialog(options: DialogOptions): Promise<string | null> {
 
   const actions = document.createElement("div");
   actions.className = "actions";
-  const cancel = document.createElement("button");
-  cancel.type = "button";
-  cancel.textContent = "취소";
-  cancel.addEventListener("click", () => dialog.close("cancel"));
-  const ok = document.createElement("button");
-  ok.value = "ok";
-  ok.className = options.danger ? "danger" : "primary";
-  ok.textContent = options.confirmLabel;
+  const cancel = cancelButton(dialog);
+  const ok = okButton(options.confirmLabel, options.danger ? "danger" : "primary");
   if (!input) ok.autofocus = true;
   actions.append(...(options.hideCancel ? [ok] : [cancel, ok]));
   form.append(actions);
@@ -84,6 +78,22 @@ function showDialog(options: DialogOptions): Promise<string | null> {
     openDialog(dialog, STYLE, () => resolve(dialog.returnValue === "ok" ? (input?.value ?? "") : null));
     input?.select();
   });
+}
+
+function cancelButton(dialog: HTMLDialogElement): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "취소";
+  button.addEventListener("click", () => dialog.close("cancel"));
+  return button;
+}
+
+function okButton(label: string, className: string): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.value = "ok";
+  button.className = className;
+  button.textContent = label;
+  return button;
 }
 
 function openDialog(dialog: HTMLDialogElement, css: string, onClose: () => void): void {
@@ -218,15 +228,8 @@ export function orderDialog(options: {
     reset = true;
     render();
   });
-  const cancel = document.createElement("button");
-  cancel.type = "button";
-  cancel.textContent = "취소";
-  cancel.addEventListener("click", () => dialog.close("cancel"));
-  const ok = document.createElement("button");
-  ok.value = "ok";
-  ok.className = "primary";
-  ok.textContent = "저장";
-  actions.append(resetButton, cancel, ok);
+  const ok = okButton("저장", "primary");
+  actions.append(resetButton, cancelButton(dialog), ok);
 
   render();
   form.append(title, hint, list, actions);

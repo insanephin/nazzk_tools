@@ -11,9 +11,9 @@ import {
   setSeenSections,
   type SeenSection,
 } from "../shared/homeSections";
+import { MARK, oncePerFrame } from "../shared/dom";
 import { orderDialog } from "./dialog";
 
-const MARK = "data-nazzk-toolkit";
 const GAP = "30px";
 const TOOLBAR_GAP = "12px";
 const LAST = 1_000_000;
@@ -21,7 +21,6 @@ const STEP = 1000;
 
 let active = false;
 let observer: MutationObserver | null = null;
-let layoutQueued = false;
 
 let order: string[] = [];
 let seen: SeenSection[] = [];
@@ -33,7 +32,7 @@ const styled = new Set<HTMLElement>();
 export function mountHomeLayout(): void {
   if (active) return;
   active = true;
-  observer = new MutationObserver(queueLayout);
+  observer = new MutationObserver(oncePerFrame(layout));
   observer.observe(document.body, { childList: true, subtree: true, attributeFilter: [SLOT_ATTR] });
   load();
 }
@@ -53,15 +52,6 @@ onHomeSectionsChanged(() => {
 async function load(): Promise<void> {
   [order, seen] = await Promise.all([getHomeSectionOrder(), getSeenSections()]);
   layout();
-}
-
-function queueLayout(): void {
-  if (layoutQueued) return;
-  layoutQueued = true;
-  requestAnimationFrame(() => {
-    layoutQueued = false;
-    layout();
-  });
 }
 
 function layout(): void {

@@ -20,6 +20,7 @@ const options = {
   bundle: true,
   format: "iife",
   target: "chrome120",
+  minify: !watch,
   sourcemap: watch ? "inline" : false,
   logLevel: "info",
 };

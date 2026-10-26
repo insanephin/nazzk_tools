@@ -18,17 +18,14 @@ interface RawResponse {
   content?: { totalPage?: number; followingList?: RawFollowing[] };
 }
 
-const BASE = "https://api.chzzk.naver.com/service/v1/channels/followings";
+const API = "https://api.chzzk.naver.com/service/v1/channels";
 export const FOLLOWINGS_MESSAGE = "nazzk-toolkit:followings";
 const PAGE_SIZE = 100;
 
 export async function fetchFollowings(): Promise<FollowingChannel[]> {
   const result: FollowingChannel[] = [];
   for (let page = 0; ; page++) {
-    const url = `${BASE}?page=${page}&size=${PAGE_SIZE}&sortType=FOLLOW`;
-    const res = await fetch(url, { credentials: "include" });
-    const body = (await res.json()) as RawResponse;
-    if (body.code !== 200) throw new Error(body.message ?? `code ${body.code}`);
+    const body = await request(`${API}/followings?page=${page}&size=${PAGE_SIZE}&sortType=FOLLOW`);
 
     const list = body.content?.followingList ?? [];
     result.push(...list.map(toChannel));
@@ -53,8 +50,12 @@ function toChannel(raw: RawFollowing): FollowingChannel {
 }
 
 export async function setNotification(channelId: string, on: boolean): Promise<void> {
-  const url = `https://api.chzzk.naver.com/service/v1/channels/${channelId}/notification`;
-  const res = await fetch(url, { method: on ? "PUT" : "DELETE", credentials: "include" });
+  await request(`${API}/${channelId}/notification`, on ? "PUT" : "DELETE");
+}
+
+async function request(url: string, method = "GET"): Promise<RawResponse> {
+  const res = await fetch(url, { method, credentials: "include" });
   const body = (await res.json()) as RawResponse;
   if (body.code !== 200) throw new Error(body.message ?? `code ${body.code}`);
+  return body;
 }
