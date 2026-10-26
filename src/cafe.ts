@@ -12,13 +12,14 @@ const ARTICLE_PATH = [
 ];
 
 const ARTICLE = ".ArticleContentBox";
-const OWNER_BTNS = ".ArticleBottomBtns .left_area";
+const OWNER_BTNS = ".ArticleBottomBtns";
 const KEEP = `${ARTICLE}, ${OWNER_BTNS}`;
 const FRAME_CSS = `
   body *:not(:has(${KEEP})):not(${KEEP}):not(:is(${KEEP}) *) { display: none !important; }
   html, body, body *:has(${KEEP}) { margin: 0 !important; padding: 0 !important; }
   ${ARTICLE} { border: 0 !important; border-radius: 0 !important; }
   ${OWNER_BTNS} { padding: 12px 29px 20px !important; }
+  ${OWNER_BTNS} .right_area { display: none !important; }
   .CommentLineSticker { top: auto !important; bottom: 100% !important; }
   .CommentLineSticker .se2_line_layer { top: auto !important; bottom: 0 !important; }
 `;
