@@ -2,18 +2,23 @@ import { getSettings } from "./shared/settings";
 import { STEAM_PLAYER_PAGE, type SteamTrailer } from "./shared/steam";
 
 const FRAME_NAME = "nazzk-toolkit-cafe";
+const SECTION_HOST = "section.cafe.naver.com";
+const OPEN_PARAM = "nazzk_article";
 const OVERLAY_ID = "nazzk-toolkit-cafe-overlay";
 const ARTICLE_PATH = [
-  /^\/(f-e|ca-fe)\/cafes\/\d+\/articles\/\d+/,
+  /^\/(f-e|ca-fe)\/cafes\/\d+\/articles\/\d+\/?$/,
   /^\/ArticleRead\.nhn$/i,
   /^\/[\w-]+\/\d+\/?$/,
 ];
 
-const KEEP = ".ArticleContentBox";
+const ARTICLE = ".ArticleContentBox";
+const OWNER_BTNS = ".ArticleBottomBtns .left_area";
+const KEEP = `${ARTICLE}, ${OWNER_BTNS}`;
 const FRAME_CSS = `
   body *:not(:has(${KEEP})):not(${KEEP}):not(:is(${KEEP}) *) { display: none !important; }
   html, body, body *:has(${KEEP}) { margin: 0 !important; padding: 0 !important; }
-  ${KEEP} { border: 0 !important; border-radius: 0 !important; }
+  ${ARTICLE} { border: 0 !important; border-radius: 0 !important; }
+  ${OWNER_BTNS} { padding: 12px 29px 20px !important; }
   .CommentLineSticker { top: auto !important; bottom: 100% !important; }
   .CommentLineSticker .se2_line_layer { top: auto !important; bottom: 0 !important; }
 `;
@@ -30,9 +35,11 @@ if (window.name === FRAME_NAME) {
   style.textContent = FRAME_CSS;
   document.documentElement.append(style);
   fitModalToArticle();
+  leaveFrameOnNavigate();
 }
 redirectMobile();
-watchClips();
+openPendingArticle();
+if (location.hostname !== SECTION_HOST) watchClips();
 chrome.storage.onChanged.addListener((_changes, area) => {
   if (area === "sync") apply();
 });
@@ -146,7 +153,8 @@ addEventListener(
     if (!anchor || !isArticleUrl(anchor.href)) return;
     e.preventDefault();
     e.stopImmediatePropagation();
-    openModal(articleFrameUrl(anchor.href));
+    if (location.hostname === SECTION_HOST) openViaList(anchor);
+    else openModal(articleFrameUrl(anchor.href));
   },
   true,
 );
@@ -194,12 +202,40 @@ function openModal(href: string): void {
 
 function articleFrameUrl(href: string): string {
   const url = new URL(href);
-  const fe = url.pathname.match(/^\/f-e\/cafes\/(\d+)\/articles\/(\d+)/);
-  const ids = fe ?? (/^\/ArticleRead\.nhn$/i.test(url.pathname) ? [, url.searchParams.get("clubid"), url.searchParams.get("articleid")] : null);
-  if (!ids?.[1] || !ids[2]) return href;
-  url.pathname = `/ca-fe/cafes/${ids[1]}/articles/${ids[2]}`;
-  if (!fe) url.search = "";
+  const ids = articleIds(url);
+  if (!ids) return href;
+  if (/^\/ArticleRead\.nhn$/i.test(url.pathname)) url.search = "";
+  url.pathname = `/ca-fe/cafes/${ids[0]}/articles/${ids[1]}`;
   return url.href;
+}
+
+function articleIds(url: URL): [string, string] | null {
+  const path = url.pathname.match(/^\/(?:f-e|ca-fe)\/cafes\/(\d+)\/articles\/(\d+)/);
+  if (path) return [path[1], path[2]];
+  const club = url.searchParams.get("clubid");
+  const article = url.searchParams.get("articleid");
+  return /^\/ArticleRead\.nhn$/i.test(url.pathname) && club && article ? [club, article] : null;
+}
+
+function openViaList(anchor: HTMLAnchorElement): void {
+  const article = new URL(anchor.href);
+  const ids = articleIds(article);
+  const list = new URL(ids ? `/f-e/cafes/${ids[0]}/menus/0` : `/${article.pathname.split("/")[1]}`, article.origin);
+  list.searchParams.set(OPEN_PARAM, anchor.href);
+  if (anchor.target === "_blank") window.open(list.href, "_blank", "noopener");
+  else location.href = list.href;
+}
+
+function openPendingArticle(): void {
+  if (window !== window.top || location.hostname !== "cafe.naver.com") return;
+  const url = new URL(location.href);
+  const article = url.searchParams.get(OPEN_PARAM);
+  if (!article || !isArticleUrl(article)) return;
+  url.searchParams.delete(OPEN_PARAM);
+  history.replaceState(history.state, "", url.href);
+  const open = () => openModal(articleFrameUrl(article));
+  if (document.body) open();
+  else addEventListener("DOMContentLoaded", open, { once: true });
 }
 
 function fitModalToArticle(): void {
@@ -210,12 +246,21 @@ function fitModalToArticle(): void {
     box.style.width = `${(entry.target as HTMLElement).offsetWidth + scrollbar}px`;
   });
   const watch = new MutationObserver(() => {
-    const article = document.querySelector(KEEP);
+    const article = document.querySelector(ARTICLE);
     if (!article) return;
     watch.disconnect();
     resize.observe(article);
   });
   watch.observe(document, { childList: true, subtree: true });
+}
+
+function leaveFrameOnNavigate(): void {
+  const path = location.pathname;
+  const check = () => {
+    if (location.pathname !== path) window.top!.location.href = location.href;
+  };
+  new MutationObserver(check).observe(document, { childList: true, subtree: true });
+  addEventListener("popstate", check);
 }
 
 function closeModal(): void {
@@ -228,7 +273,7 @@ function closeModal(): void {
 
 function isArticlePage(): boolean {
   const top = new URL(window.top!.location.href);
-  const inner = top.searchParams.get("iframe_url");
+  const inner = top.searchParams.get("iframe_url") ?? top.searchParams.get("iframe_url_utf8");
   return isArticleUrl(top.href) || (inner !== null && isArticleUrl(new URL(inner, top.origin).href));
 }
 

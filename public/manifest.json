@@ -27,7 +27,7 @@
       "world": "MAIN"
     },
     {
-      "matches": ["https://cafe.naver.com/*", "https://m.cafe.naver.com/*"],
+      "matches": ["https://cafe.naver.com/*", "https://m.cafe.naver.com/*", "https://section.cafe.naver.com/*"],
       "js": ["cafe.js"],
       "run_at": "document_start",
       "all_frames": true
