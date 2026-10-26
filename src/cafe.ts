@@ -18,6 +18,7 @@ const FRAME_CSS = `
   body *:not(:has(${KEEP})):not(${KEEP}):not(:is(${KEEP}) *) { display: none !important; }
   html, body, body *:has(${KEEP}) { margin: 0 !important; padding: 0 !important; }
   ${ARTICLE} { border: 0 !important; border-radius: 0 !important; }
+  ${ARTICLE} iframe { max-height: calc(100vh - 32px) !important; }
   ${OWNER_BTNS} { padding: 12px 29px 20px !important; }
   ${OWNER_BTNS} .right_area { display: none !important; }
   .CommentLineSticker { top: auto !important; bottom: 100% !important; }
@@ -40,6 +41,7 @@ if (window.name === FRAME_NAME) {
 }
 redirectMobile();
 openPendingArticle();
+unwrapCafeShell();
 if (location.hostname !== SECTION_HOST) watchClips();
 chrome.storage.onChanged.addListener((_changes, area) => {
   if (area === "sync") apply();
@@ -196,6 +198,7 @@ function openModal(href: string): void {
 
   const frame = doc.createElement("iframe");
   frame.name = FRAME_NAME;
+  frame.allow = "autoplay; fullscreen; clipboard-write";
   frame.src = href;
   frame.style.cssText = "width:100%;height:100%;border:0;display:block";
 
@@ -234,7 +237,7 @@ function articleIds(url: URL): [string, string] | null {
 function openViaList(anchor: HTMLAnchorElement): void {
   const article = new URL(anchor.href);
   const ids = articleIds(article);
-  const list = new URL(ids ? `/f-e/cafes/${ids[0]}/menus/0` : `/${article.pathname.split("/")[1]}`, article.origin);
+  const list = new URL(ids ? listPath(ids[0]) : `/${article.pathname.split("/")[1]}`, article.origin);
   list.searchParams.set(OPEN_PARAM, anchor.href);
   if (anchor.target === "_blank") window.open(list.href, "_blank", "noopener");
   else location.href = list.href;
@@ -247,9 +250,34 @@ function openPendingArticle(): void {
   if (!article || !isArticleUrl(article)) return;
   url.searchParams.delete(OPEN_PARAM);
   history.replaceState(history.state, "", url.href);
-  const open = () => openModal(articleFrameUrl(article));
+  const open = () => {
+    openModal(articleFrameUrl(article));
+    if (!/^\/(?:f-e|ca-fe)\/cafes\/\d+/.test(location.pathname)) {
+      document.getElementById(OVERLAY_ID)!.dataset.toList = "1";
+    }
+  };
   if (document.body) open();
   else addEventListener("DOMContentLoaded", open, { once: true });
+}
+
+function unwrapCafeShell(): void {
+  if (window === window.top) return;
+  try {
+    const ids = articleIds(new URL(location.href));
+    if (window.parent.name !== FRAME_NAME || !ids) return;
+    const article = articleFrameUrl(location.href);
+    if (window.top!.document.getElementById(OVERLAY_ID)?.dataset.toList) {
+      const list = new URL(listPath(ids[0]), location.origin);
+      list.searchParams.set(OPEN_PARAM, article);
+      window.top!.location.replace(list.href);
+    } else {
+      window.parent.location.replace(article);
+    }
+  } catch {}
+}
+
+function listPath(clubId: string): string {
+  return `/f-e/cafes/${clubId}/menus/0`;
 }
 
 function fitModalToArticle(): void {
