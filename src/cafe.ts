@@ -99,15 +99,21 @@ function hideClipLink(anchor: HTMLAnchorElement, block: HTMLElement): void {
   target.style.display = "none";
 }
 
-// Keeps the Steam card (title, price) and adds the first trailer below it.
 function embedSteam(anchor: HTMLAnchorElement, appId: string): void {
   const key = `steam:${appId}`;
-  if (document.querySelector(`iframe[${CLIP_ATTR}="${key}"]`)) return;
-  const block = anchor.closest<HTMLElement>(".se-section, p") ?? anchor;
-  // Inserted hidden right away so other links to the same app are deduped while the fetch runs.
-  const frame = playerFrame(key);
+  const card = anchor.closest<HTMLElement>(".se-module-oglink");
+  card?.querySelectorAll<HTMLElement>("a[href]").forEach((a) => (a.dataset[CLIP_DONE] = "1"));
+  const block = (card ?? anchor).closest<HTMLElement>(".se-section, p") ?? anchor;
+  if (document.querySelector(`iframe[${CLIP_ATTR}="${key}"]`)) {
+    if (card) block.remove();
+    return;
+  }
+  const widget = steamWidget(key, appId);
+  if (card) block.replaceWith(widget);
+  else block.after(widget);
+  const frame = playerFrame(`${key}:trailer`);
   frame.style.display = "none";
-  block.after(frame);
+  widget.after(frame);
   chrome.runtime.sendMessage({ type: "steamTrailer", appId }).then(
     (trailer: SteamTrailer | null) => {
       if (!trailer) return frame.remove();
@@ -132,6 +138,14 @@ function matchHref(href: string, re: RegExp): string | null {
 function clipPlayer(uid: string): HTMLIFrameElement {
   const frame = playerFrame(uid);
   frame.src = `https://chzzk.naver.com/embed/clip/${uid}`;
+  return frame;
+}
+
+function steamWidget(key: string, appId: string): HTMLIFrameElement {
+  const frame = document.createElement("iframe");
+  frame.setAttribute(CLIP_ATTR, key);
+  frame.src = `https://store.steampowered.com/widget/${appId}/?l=koreana`;
+  frame.style.cssText = "display:block;width:100%;max-width:646px;height:190px;margin:8px 0;border:0";
   return frame;
 }
 
